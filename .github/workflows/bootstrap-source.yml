@@ -24,7 +24,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/finance-career-source
-          tar -xJf _bootstrap/source.tar.xz -C /tmp/finance-career-source
+          base64 -d _bootstrap/source.tar.xz > /tmp/finance-career-source.tar.xz
+          tar -xJf /tmp/finance-career-source.tar.xz -C /tmp/finance-career-source
           root=/tmp/finance-career-source
           if [ ! -f "$root/package.json" ]; then
             candidate="$(find /tmp/finance-career-source -mindepth 1 -maxdepth 1 -type d | head -n 1)"
