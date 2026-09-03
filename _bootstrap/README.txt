@@ -1,1 +1,1 @@
-Temporary verified bootstrap payload. This directory is removed automatically after the full Finance Career source passes npm install, build and the complete test suite in GitHub Actions.
+Temporary verified bootstrap payload. Trigger: 2026-09-03T16:17Z. This directory is removed automatically after the full Finance Career source passes integrity verification, npm install, build and the complete test suite in GitHub Actions.
