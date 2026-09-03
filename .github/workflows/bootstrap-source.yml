@@ -1,0 +1,93 @@
+name: Bootstrap Finance Career Source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '_bootstrap/source.tar.xz'
+      - '.github/workflows/bootstrap-source.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout bootstrap repository
+        uses: actions/checkout@v4
+
+      - name: Extract source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/finance-career-source
+          tar -xJf _bootstrap/source.tar.xz -C /tmp/finance-career-source
+          root=/tmp/finance-career-source
+          if [ ! -f "$root/package.json" ]; then
+            candidate="$(find /tmp/finance-career-source -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+            if [ -n "$candidate" ] && [ -f "$candidate/package.json" ]; then
+              root="$candidate"
+            fi
+          fi
+          test -f "$root/package.json"
+          echo "SOURCE_ROOT=$root" >> "$GITHUB_ENV"
+
+      - name: Verify exact source snapshot
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, os, sys
+          root = Path(os.environ['SOURCE_ROOT'])
+          files = sorted(p for p in root.rglob('*') if p.is_file())
+          h = hashlib.sha256()
+          for p in files:
+              rel = p.relative_to(root).as_posix()
+              h.update(rel.encode())
+              h.update(b'\0')
+              h.update(hashlib.sha256(p.read_bytes()).digest())
+          digest = h.hexdigest()
+          expected = 'ec13a6aa459778b081aab57169bb484e096108d91055b88c4353fa012ad4d07c'
+          print(f'files={len(files)} digest={digest}')
+          if len(files) != 222 or digest != expected:
+              print('Source snapshot does not match the verified Finance Career final package.', file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: Replace bootstrap tree with Finance Career source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete --exclude='.git/' "$SOURCE_ROOT/" ./
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: Full test suite
+        run: node --test tests/*.test.mjs
+
+      - name: Publish verified source to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'finance-career-ci'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No source changes to publish.'
+            exit 0
+          fi
+          git commit -m 'feat: publish complete Finance Career source'
+          git push origin HEAD:main
