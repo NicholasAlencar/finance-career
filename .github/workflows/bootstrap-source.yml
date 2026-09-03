@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '_bootstrap/source.tar.xz'
+      - '_bootstrap/README.txt'
       - '.github/workflows/bootstrap-source.yml'
 
 permissions:
